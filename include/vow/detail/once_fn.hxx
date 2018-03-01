@@ -123,8 +123,12 @@ auto once_fn_create(Fn&& fn, void* buffer, std::size_t buffer_size)
     return once_fn_ptr_ops<std::decay_t<Fn>, Result, Args...>;
 }
 
+inline constexpr
+std::size_t once_fn_default_buffer_size = 
+    VOW_DETAIL_ONCE_FN_DEFAULT_BUFFER_SIZE;
+
 template <typename Signature,
-          std::size_t Size = VOW_DETAIL_ONCE_FN_DEFAULT_BUFFER_SIZE>
+          std::size_t Size = once_fn_default_buffer_size>
 struct once_fn;
 
 template <typename Result, typename... Args, std::size_t Size>
