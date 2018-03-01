@@ -138,6 +138,18 @@ struct once_fn<Result(Args...), Size>
                                                 buffer_, sizeof(buffer_));
     }
 
+    template <typename Result_, typename... Args_>
+    once_fn(Result (*fn_ptr)(Args_...))
+    noexcept
+    {
+        if (fn_ptr) {
+            ops_ = &once_fn_create<Result, Args...>(*fn_ptr,
+                                                    buffer_, sizeof(buffer_));
+        } else {
+            ops_ = nullptr;
+        }
+    }
+
     once_fn(std::nullptr_t = nullptr)
     noexcept
     : ops_(nullptr)
@@ -180,9 +192,19 @@ struct once_fn<Result(Args...), Size>
 private:
     once_fn_ops_t<Result, Args...> const* ops_;
 
-    alignas(void*)
-    char buffer_[std::max(sizeof(void*), Size)];
+    alignas(std::max({
+        alignof(void*),
+        alignof(void (*)()),
+    }))
+    char buffer_[std::max(Size, std::max({
+        sizeof(void*),
+        sizeof(void (*)()),
+    }))];
 };
+
+template <typename Result, typename... Args>
+once_fn(Result (*fn_ptr)(Args...))
+-> once_fn<Result(Args...)>;
 
 ///////////////////////////////////////////////////////////////////////////////
 }
