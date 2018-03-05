@@ -38,6 +38,13 @@ public:
     using detail::result_base<Value>::get;
 };
 
+result()
+-> result<void>;
+
+template <typename Value>
+result(Value&&)
+-> result<std::decay_t<Value>>;
+
 ///////////////////////////////////////////////////////////////////////////////
 }
 
