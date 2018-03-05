@@ -45,6 +45,10 @@ template <typename Value>
 result(Value&&)
 -> result<std::decay_t<Value>>;
 
+template <typename Value>
+result(with_value_t, Value&&)
+-> result<std::decay_t<Value>>;
+
 ///////////////////////////////////////////////////////////////////////////////
 }
 
