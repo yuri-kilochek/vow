@@ -1,5 +1,5 @@
-#ifndef VOW_DETAIL_INCLUDE_GUARD_DETAIL_RESULT_BASE
-#define VOW_DETAIL_INCLUDE_GUARD_DETAIL_RESULT_BASE
+#ifndef VOW_DETAIL_INCLUDE_GUARD_DETAIL_RESULT_IMPL
+#define VOW_DETAIL_INCLUDE_GUARD_DETAIL_RESULT_IMPL
 
 #include <vow/with_value.hxx>
 #include <vow/with_exception.hxx>
@@ -16,35 +16,11 @@ namespace vow::detail {
 ///////////////////////////////////////////////////////////////////////////////
 
 template <typename Value>
-struct result_base;
-
-template <typename Type>
-class is_derived_from_result_base
-{
-    template <typename Value>
-    static
-    auto test(result_base<Value>*)
-    -> std::true_type;
-
-    static
-    auto test(...)
-    -> std::false_type;
-
-public:
-    inline static constexpr
-    auto value = decltype(test(std::declval<Type*>()))::value;
-};
-
-template <typename Type>
-inline constexpr
-auto is_derived_from_result_base_v = is_derived_from_result_base<Type>::value;
-
-template <typename Value>
-struct result_base
+struct result_impl
 {
     template <typename... Args, std::enable_if_t<
         std::is_constructible_v<result_value_box<Value>, Args...>>*...>
-    result_base(with_value_t, Args&&... args)
+    result_impl(with_value_t, Args&&... args)
     noexcept
     {
         try {
@@ -59,7 +35,7 @@ struct result_base
 
     template <typename ExceptionPtr, std::enable_if_t<
         std::is_constructible_v<std::exception_ptr, ExceptionPtr>>*...>
-    result_base(with_exception_t, ExceptionPtr&& exception_ptr)
+    result_impl(with_exception_t, ExceptionPtr&& exception_ptr)
     noexcept
     {
         try {
@@ -74,9 +50,9 @@ struct result_base
 
     template <typename Exception, std::enable_if_t<
         !std::is_constructible_v<std::exception_ptr, Exception>>*...>
-    result_base(with_exception_t, Exception&& exception)
+    result_impl(with_exception_t, Exception&& exception)
     noexcept
-    : result_base(with_exception, [&]{
+    : result_impl(with_exception, [&]{
           try {
               return std::make_exception_ptr(
                   std::forward<Exception>(exception));
@@ -87,9 +63,9 @@ struct result_base
     {}
 
     template <typename Exception, typename... Args>
-    result_base(with_exception_of_type_t<Exception>, Args&&... args)
+    result_impl(with_exception_of_type_t<Exception>, Args&&... args)
     noexcept
-    : result_base(with_exception, [&]{
+    : result_impl(with_exception, [&]{
           try {
               return std::make_exception_ptr(
                   Exception(std::forward<Args>(args)...));
@@ -101,27 +77,26 @@ struct result_base
 
     template <typename... Args, std::enable_if_t<
         is_implicitly_constructible_v<result_value_box<Value>, Args...>>*...>
-    result_base(Args&&... args)
+    result_impl(Args&&... args)
     noexcept
-    : result_base(with_value, std::forward<Args>(args)...)
+    : result_impl(with_value, std::forward<Args>(args)...)
     {}
 
     template <typename... Args, std::enable_if_t<
         std::is_constructible_v<result_value_box<Value>, Args...> &&
         !is_implicitly_constructible_v<result_value_box<Value>, Args...>>*...>
     explicit
-    result_base(Args&&... args)
+    result_impl(Args&&... args)
     noexcept
-    : result_base(with_value, std::forward<Args>(args)...)
+    : result_impl(with_value, std::forward<Args>(args)...)
     {}
 
     template <typename AnyValue, std::enable_if_t<
-        !is_derived_from_result_base_v<std::decay_t<AnyValue>> &&
         std::is_constructible_v<result_value_box<Value>, AnyValue> &&
         std::is_assignable_v<result_value_box<Value>&, AnyValue>>*...>
     auto operator=(AnyValue&& any_value)
     noexcept
-    -> result_base&
+    -> result_impl&
     {
         if (has_exception_) {
             std::destroy_at(&exception_ptr_);
@@ -146,70 +121,31 @@ struct result_base
         return *this;
     }
 
-    result_base(result_base&& other)
+    result_impl(result_impl&& other)
     noexcept
     { construct(std::move(other)); }
 
-    result_base(result_base const& other)
+    result_impl(result_impl const& other)
     noexcept
     { construct(other); }
 
-    template <typename Other,
-              typename OtherValueBox = 
-                  decltype((std::declval<Other>().value_box_)),
-    std::enable_if_t<
-        is_derived_from_result_base_v<std::decay_t<Other>> &&
-        is_implicitly_constructible_v<result_value_box<Value>, OtherValueBox>
-    >*...>
-    result_base(Other&& other)
+    auto operator=(result_impl&& other)
     noexcept
-    { construct(std::forward<Other>(other)); }
-
-    template <typename Other,
-              typename OtherValueBox = 
-                  decltype((std::declval<Other>().value_box_)),
-    std::enable_if_t<
-        is_derived_from_result_base_v<std::decay_t<Other>> &&
-        std::is_constructible_v<result_value_box<Value>, OtherValueBox> &&
-        !is_implicitly_constructible_v<result_value_box<Value>, OtherValueBox>
-    >*...>
-    explicit
-    result_base(Other&& other)
-    noexcept
-    { construct(std::forward<Other>(other)); }
-
-    auto operator=(result_base&& other)
-    noexcept
-    -> result_base&
+    -> result_impl&
     {
         assign(std::move(other));
         return *this;
     }
 
-    auto operator=(result_base const& other)
+    auto operator=(result_impl const& other)
     noexcept
-    -> result_base&
+    -> result_impl&
     {
         assign(other);
         return *this;
     }
 
-    template <typename Other,
-              typename OtherValueBox = 
-                  decltype((std::declval<Other>().value_box_)),
-    std::enable_if_t<
-        is_derived_from_result_base_v<std::decay_t<Other>> &&
-        std::is_constructible_v<result_value_box<Value>, OtherValueBox> &&
-        std::is_assignable_v<result_value_box<Value>&, OtherValueBox>>*...>
-    auto operator=(Other&& other)
-    noexcept
-    -> result_base&
-    {
-        assign(std::forward<Other>(other));
-        return *this;
-    }
-
-    ~result_base()
+    ~result_impl()
     {
         if (has_exception_) {
             std::destroy_at(&exception_ptr_);
@@ -228,9 +164,6 @@ struct result_base
     }
 
 private:
-    template <typename OtherValue>
-    friend class result_base;
-
     union {
         result_value_box<Value> value_box_;
         std::exception_ptr exception_ptr_;

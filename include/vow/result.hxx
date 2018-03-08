@@ -1,7 +1,7 @@
 #ifndef VOW_DETAIL_INCLUDE_GUARD_RESULT
 #define VOW_DETAIL_INCLUDE_GUARD_RESULT
 
-#include <vow/detail/result_base.hxx>
+#include <vow/detail/result_impl.hxx>
 #include <vow/detail/result_value_box.hxx>
 #include <vow/detail/move_constructible_if.hxx>
 #include <vow/detail/copy_constructible_if.hxx>
@@ -9,33 +9,28 @@
 #include <vow/detail/copy_assignable_if.hxx>
 
 #include <type_traits>
+#include <functional>
 
 namespace vow {
 ///////////////////////////////////////////////////////////////////////////////
 
 template <typename Value>
-class result
-: detail::result_base<Value>
-, detail::move_constructible_if<
+struct result
+: private detail::result_impl<Value>
+, private detail::move_constructible_if<
     std::is_move_constructible_v<detail::result_value_box<Value>>>
-, detail::copy_constructible_if<
+, private detail::copy_constructible_if<
     std::is_copy_constructible_v<detail::result_value_box<Value>>>
-, detail::move_assignable_if<
+, private detail::move_assignable_if<
     std::is_move_constructible_v<detail::result_value_box<Value>> &&
     std::is_move_assignable_v<detail::result_value_box<Value>>>
-, detail::copy_assignable_if<
+, private detail::copy_assignable_if<
     std::is_copy_constructible_v<detail::result_value_box<Value>> &&
     std::is_copy_assignable_v<detail::result_value_box<Value>>>
 {
-    friend class detail::is_derived_from_result_base<result>;
-
-    template <typename AnyValue>
-    friend class detail::result_base;
-
-public:
-    using detail::result_base<Value>::result_base;
-    using detail::result_base<Value>::operator=;
-    using detail::result_base<Value>::get;
+    using detail::result_impl<Value>::result_impl;
+    using detail::result_impl<Value>::operator=;
+    using detail::result_impl<Value>::get;
 };
 
 result()
@@ -48,6 +43,14 @@ result(Value&&)
 template <typename Value>
 result(with_value_t, Value&&)
 -> result<std::decay_t<Value>>;
+
+template <typename Value>
+result(std::reference_wrapper<Value>)
+-> result<Value&>;
+
+template <typename Value>
+result(with_value_t, std::reference_wrapper<Value>)
+-> result<Value&>;
 
 ///////////////////////////////////////////////////////////////////////////////
 }
