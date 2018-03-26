@@ -1,13 +1,13 @@
 #ifndef VOW_DETAIL_INCLUDE_GUARD_PROMISE
 #define VOW_DETAIL_INCLUDE_GUARD_PROMISE
 
-#include <vow/detail/future_base.hxx>
-#include <vow/detail/dispatcher.hxx>
 #include <vow/result.hxx>
+#include <vow/detail/with_lock.hxx>
+#include <vow/detail/once_fn.hxx>
 #include <vow/detail/mutex.hxx>
 #include <vow/detail/promise_status.hxx>
-#include <vow/detail/with_lock.hxx>
 #include <vow/abandoned.hxx>
+#include <vow/detail/future_status.hxx>
 
 #include <utility>
 #include <type_traits>
@@ -19,7 +19,7 @@
 namespace vow {
 ///////////////////////////////////////////////////////////////////////////////
 
-template <typename Value, typename... Fns>
+template <typename Value>
 class future;
 
 template <typename Value>
@@ -52,22 +52,17 @@ struct promise
         std::is_constructible_v<result<Value>, Args...>>*...>
     void operator()(Args&&... args)
     noexcept
-    { (*this)(result<Value>(std::forward<Args>(args)...)); }
-
-    void operator()(vow::result<Value>&& result)
-    noexcept
     {
         std::unique_lock lock{mutex_};
-        (*this)(detail::with_lock, lock, std::move(result));
+        (*this)(detail::with_lock, lock, std::forward<Args>(args)...);
     }
 
 private:
-    template <typename Value_, typename... Fns>
-    friend class future;
+    friend class future<Value>;
 
     union {
-        detail::future_base<Value>* future_;
-        detail::dispatcher<Value> dispatch_;
+        future<Value>* future_;
+        detail::once_fn<void(result<Value>&&)> dispatch_;
     };
     detail::mutex mutex_;
     detail::promise_status status_;
@@ -87,14 +82,14 @@ private:
                 status_ = detail::promise_status::linked;
                 std::destroy_at(&other.future_);
                 other.status_ = detail::promise_status::unlinked;
-                auto future_state = future_->get_state();
+                std::unique_lock future_lock{future_->mutex_};
                 other_lock.unlock();
-                future_state.promise = this;
+                future_->promise_ = this;
                 break;
             }
             case detail::promise_status::ready: {
                 other_lock.unlock();
-                new(&dispatch_) 
+                new(&dispatch_)
                     decltype(dispatch_)(std::move(other.dispatch_));
                 status_ = detail::promise_status::ready;
                 std::destroy_at(&other.dispatch_);
@@ -122,8 +117,10 @@ private:
         }
     }
 
+    template <typename... Args, std::enable_if_t<
+        std::is_constructible_v<result<Value>, Args...>>*...>
     void operator()(detail::with_lock_t, std::unique_lock<detail::mutex>& lock,
-                    vow::result<Value>&& result)
+                    Args&&... args)
     noexcept
     {
         switch (status_) {
@@ -136,10 +133,34 @@ private:
                 auto future = std::move(future_);
                 std::destroy_at(&future_);
                 status_ = detail::promise_status::unlinked;
-                auto future_state = future_->get_state();
+                std::unique_lock future_lock{future->mutex_};
                 lock.unlock();
-                future_state.dispatch(*future, future_state.lock,
-                                      std::move(result));
+                switch (future->status_) {
+                    case detail::future_status::unlinked: {
+                        assert(false);
+                        break;
+                    }
+                    case detail::future_status::linked: {
+                        std::destroy_at(future->promise_);
+                        new(&future->result_) decltype(future->result_)(
+                            std::forward<Args>(args)...);
+                        future->status_ = detail::future_status::ready;
+                        break;
+                    }
+                    case detail::future_status::waiting: {
+                        auto condvar = std::move(future->condvar_);
+                        std::destroy_at(future->condvar_);
+                        new(&future->result_) decltype(future->result_)(
+                            std::forward<Args>(args)...);
+                        future->status_ = detail::future_status::ready;
+                        condvar->notify_one();
+                        break;
+                    }
+                    case detail::future_status::ready: {
+                        assert(false);
+                        break;
+                    }
+                }
                 break;
             }
             case detail::promise_status::ready: {
@@ -147,7 +168,7 @@ private:
                 auto dispatch = std::move(dispatch_);
                 std::destroy_at(&dispatch_);
                 status_ = detail::promise_status::unlinked;
-                dispatch(std::move(result));
+                dispatch(result<Value>(std::forward<Args>(args)...));
                 break;
             }
         }
