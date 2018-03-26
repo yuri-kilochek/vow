@@ -1,0 +1,14 @@
+#ifndef VOW_DETAIL_INCLUDE_GUARD_DETAIL_MUTEX
+#define VOW_DETAIL_INCLUDE_GUARD_DETAIL_MUTEX
+
+#include <boost/smart_ptr/detail/spinlock.hpp>
+
+namespace vow::detail {
+///////////////////////////////////////////////////////////////////////////////
+
+using mutex = boost::detail::spinlock;
+
+///////////////////////////////////////////////////////////////////////////////
+}
+
+#endif

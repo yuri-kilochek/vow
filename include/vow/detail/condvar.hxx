@@ -1,0 +1,14 @@
+#ifndef VOW_DETAIL_INCLUDE_GUARD_DETAIL_CONDVAR
+#define VOW_DETAIL_INCLUDE_GUARD_DETAIL_CONDVAR
+
+#include <condition_variable>
+
+namespace vow::detail {
+///////////////////////////////////////////////////////////////////////////////
+
+using condvar = std::condition_variable_any;
+
+///////////////////////////////////////////////////////////////////////////////
+}
+
+#endif
