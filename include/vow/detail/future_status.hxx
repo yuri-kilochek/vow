@@ -9,7 +9,6 @@ enum class future_status
 {
     unlinked = 0,
     linked,
-    waiting,
     ready,
 };
 

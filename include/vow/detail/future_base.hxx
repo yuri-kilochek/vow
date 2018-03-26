@@ -1,10 +1,8 @@
 #ifndef VOW_DETAIL_INCLUDE_GUARD_DETAIL_FUTURE_BASE
 #define VOW_DETAIL_INCLUDE_GUARD_DETAIL_FUTURE_BASE
 
-#include <vow/detail/condvar.hxx>
 #include <vow/result.hxx>
-#include <vow/detail/mutex.hxx>
-#include <vow/detail/future_status.hxx>
+#include <vow/detail/future_state.hxx>
 
 namespace vow {
     template <typename Value>
@@ -18,20 +16,13 @@ template <typename Value>
 struct future_base
 {
 
-protected:
+private:
     friend class promise<Value>;
 
-    union {
-        promise<Value>* promise_;
-        condvar* condvar_;
-        result<Value> result_;
-    };
-    mutex mutex_;
-    future_status status_;
-
     virtual
-    void dispatch()
+    auto get_state()
     noexcept
+    -> future_state<Value>
     = 0;
 };
 
