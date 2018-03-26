@@ -143,7 +143,7 @@ struct once_fn<Result(Args...), Size>
     }
 
     template <typename Result_, typename... Args_>
-    once_fn(Result (*fn_ptr)(Args_...))
+    once_fn(Result_ (*fn_ptr)(Args_...))
     noexcept
     {
         if (fn_ptr) {
@@ -182,7 +182,8 @@ struct once_fn<Result(Args...), Size>
     ~once_fn()
     { if (ops_) { ops_->destroy(buffer_); } }
 
-    explicit operator bool() const
+    explicit
+    operator bool() const
     noexcept
     { return ops_; }
 
