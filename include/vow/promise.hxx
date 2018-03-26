@@ -125,9 +125,7 @@ private:
     {
         switch (status_) {
             case detail::promise_status::unlinked: {
-                lock.unlock();
                 std::terminate();
-                break;
             }
             case detail::promise_status::linked: {
                 auto future = std::move(future_);
