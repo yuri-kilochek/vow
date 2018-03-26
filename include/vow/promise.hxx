@@ -19,8 +19,8 @@
 namespace vow {
 ///////////////////////////////////////////////////////////////////////////////
 
-//template <typename Value, typename... Fns>
-//class future;
+template <typename Value, typename... Fns>
+class future;
 
 template <typename Value>
 struct promise
@@ -62,7 +62,8 @@ struct promise
     }
 
 private:
-    friend class detail::future_base<Value>;
+    template <typename Value_, typename... Fns>
+    friend class future;
 
     union {
         detail::future_base<Value>* future_;
@@ -87,7 +88,6 @@ private:
                 std::destroy_at(&other.future_);
                 other.status_ = detail::promise_status::unlinked;
                 auto future_state = future_->get_state();
-                std::lock_guard future_lock{future_state.mutex};
                 other_lock.unlock();
                 future_state.promise = this;
                 break;
@@ -137,9 +137,9 @@ private:
                 std::destroy_at(&future_);
                 status_ = detail::promise_status::unlinked;
                 auto future_state = future_->get_state();
-                std::unique_lock future_lock{future_state.mutex};
                 lock.unlock();
-                future_state.dispatch(*future, future_lock, std::move(result));
+                future_state.dispatch(*future, future_state.lock,
+                                      std::move(result));
                 break;
             }
             case detail::promise_status::ready: {

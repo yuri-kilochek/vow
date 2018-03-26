@@ -20,7 +20,7 @@ struct future_base;
 template <typename Value>
 struct future_state
 {
-    detail::mutex& mutex;
+    std::unique_lock<detail::mutex> lock;
     vow::promise<Value>*& promise;
     void (&dispatch)(future_base<Value>& future,
                      std::unique_lock<detail::mutex>& lock,
