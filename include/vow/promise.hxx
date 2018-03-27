@@ -96,6 +96,9 @@ private:
                 other.status_ = detail::promise_status::unlinked;
                 break;
             }
+            default: {
+                std::abort();         
+            }
         }
     }
 
@@ -113,6 +116,9 @@ private:
                 (*this)(detail::with_lock, lock,
                         with_exception_of_type<abandoned>);
                 break;
+            }
+            default: {
+                std::abort();         
             }
         }
     }
@@ -135,8 +141,7 @@ private:
                 lock.unlock();
                 switch (future->status_) {
                     case detail::future_status::unlinked: {
-                        assert(false);
-                        break;
+                        std::abort();
                     }
                     case detail::future_status::linked: {
                         std::destroy_at(future->promise_);
@@ -155,8 +160,10 @@ private:
                         break;
                     }
                     case detail::future_status::ready: {
-                        assert(false);
-                        break;
+                        std::abort();
+                    }
+                    default: {
+                        std::abort();         
                     }
                 }
                 break;
@@ -168,6 +175,9 @@ private:
                 status_ = detail::promise_status::unlinked;
                 dispatch(result<Value>(std::forward<Args>(args)...));
                 break;
+            }
+            default: {
+                std::abort();         
             }
         }
     }
